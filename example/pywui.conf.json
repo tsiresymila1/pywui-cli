@@ -1,5 +1,5 @@
 {
-  "name": {{name}},
+  "name": "example",
   "window": {
     "title": "My PyWui App",
     "width": 800,
@@ -19,4 +19,3 @@
     "dist": "app/dist"
   }
 }
-

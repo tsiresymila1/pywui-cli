@@ -45,7 +45,7 @@ def check_node_installed():
 def install_and_create_vite_app(project_dir, vite_args):
     """Install Vite using npm."""
     try:
-        run(['npm', 'create', 'vite@latest', 'app', '-y', '--'] + list(vite_args), check=True)
+        run(['npm', 'create', 'vite@latest', 'app', '-y', '--'] + vite_args, check=True)
         os.chdir(os.path.join(project_dir, "app"))
         with yaspin(text="Installing dependencies ...", color="blue") as spinner:
             spinner.color = 'blue'
@@ -59,14 +59,16 @@ def install_and_create_vite_app(project_dir, vite_args):
         sys.exit(1)
 
 
-def create_new_project(name, vite_args):
+def create_new_project(name, nv, vite_args):
     # Project dir
     project_dir = os.path.join(os.getcwd(), name)
-    if os.path.exists(project_dir):
-        echo.error("Project already exists. Please remove or rename it first.")
-        return
-    os.makedirs(project_dir, exist_ok=True)
-    # main py
+    if not os.path.exists(project_dir):
+        os.makedirs(project_dir, exist_ok=True)
+    else:
+        if not os.listdir(project_dir):
+            echo.error("Project dir is not empty")
+            return
+            # main py
     put_file(os.path.join(project_dir, "main.py"), "main.py", {})
     put_file(os.path.join(project_dir, "pywui.conf.json"), "pywui.conf.json", {"name": name})
     shutil.copytree(
@@ -74,10 +76,12 @@ def create_new_project(name, vite_args):
         os.path.join(project_dir, "icons"),
         dirs_exist_ok=False
     )
-    path = os.getcwd()
-    os.chdir(project_dir)
-    install_and_create_vite_app(project_dir, vite_args=vite_args)
-    os.chdir(path)
+
+    if not nv:
+        path = os.getcwd()
+        os.chdir(project_dir)
+        install_and_create_vite_app(project_dir, vite_args=vite_args)
+        os.chdir(path)
     echo.success("Project has been successfully created.")
 
 
@@ -106,7 +110,8 @@ def cli():
 @cli.command()
 @click.argument("name", required=True)
 @click.argument("vite_args", nargs=-1, type=click.UNPROCESSED)
-def new(name, vite_args):
+@click.option("-nv", "--no-vite", is_flag=True)
+def new(name, vite_args, no_vite):
     """Command to create new pywui project."""
     # Check if Node.js is installed
     click.clear()
@@ -114,15 +119,16 @@ def new(name, vite_args):
         sys.exit(1)
     echo.success("Node.js is installed.")
     echo.info("Creating project ...")
-    create_new_project(name, vite_args)
+    create_new_project(name, no_vite, list(vite_args))
 
 
 @cli.command()
-@click.argument("spec", nargs=-1, type=click.UNPROCESSED)
-def pack(spec):
+@click.argument("spec", default="main.py", required=False)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+def pack(spec, args):
     """Command pack pywui project to single executable."""
     click.clear()
-    with yaspin(text="Packing app  ...", color="blue") as spinner:
+    with yaspin(text="Packing app ...", color="blue") as spinner:
         spinner.color = 'blue'
         try:
             import pyinstaller
@@ -136,18 +142,18 @@ def pack(spec):
         config = _load_config()
         icon = _get_icon(config)
         name = config.get("name", "pywui")
+        dist = config.get("static", {}).get("dist", "app/dist")
         freeze_command = [
                              'pyinstaller',
                              '-n', f'{name}',
                              '--onefile',
                              '--noconfirm',
-                             '--add-data', 'app/dist:.',
+                             '--add-data', f'{dist}:.',
                              '--add-data', 'pywui.conf.json:.',
                              '--add-data', 'icons:icons',
                              f'--icon={icon}',
                              '--windowed',
-                             'main.py'
-                         ] + list(spec)
+                         ] + list(args) + [spec]
         check_call(freeze_command, stdout=DEVNULL)
         spinner.color = 'green'
         spinner.ok("✔")
