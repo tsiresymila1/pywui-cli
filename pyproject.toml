@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Pywui CLI for starting pywui project."
 authors = ["Tsiresy Milà <tsiresymila@gmail.com>"]
 readme = "README.md"
+keywords = ["pywui", "pywebview", "pyinstaller", "tauri", "vite"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -11,7 +12,6 @@ click = "^8.1.7"
 minijinja = "^2.2.0"
 rich-click = "^1.8.3"
 yaspin = "^3.1.0"
-keywords = ["pywui", "pywebview", "pyinstaller", "tauri", "vite"]
 
 
 [tool.poetry.scripts]
