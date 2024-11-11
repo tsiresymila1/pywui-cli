@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "pywui-cli"
+version = "0.1.0"
+description = "Pywui CLI for starting pywui project."
+authors = ["Tsiresy Milà <tsiresymila@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.7"
+minijinja = "^2.2.0"
+rich-click = "^1.8.3"
+yaspin = "^3.1.0"
+keywords = ["pywui", "pywebview", "pyinstaller", "tauri", "vite"]
+
+
+[tool.poetry.scripts]
+pywui = "pywui_cli:cli"
+
+[tool.poetry.group.dev.dependencies]
+pywui = "^0.1.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
