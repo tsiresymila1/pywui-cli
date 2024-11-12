@@ -1,17 +1,18 @@
 import os.path
+import platform
 import shutil
 import subprocess
 import sys
-import platform
+import time
 import typing
+from subprocess import DEVNULL, check_call, run as run_cmd
 
 import rich_click as click
 import ujson
 from yaspin import yaspin
-from subprocess import DEVNULL, check_call, run
 
-from .style import CliStyle
 from .engine import put_file
+from .style import CliStyle
 
 echo = CliStyle()
 
@@ -21,7 +22,7 @@ def check_node_installed():
     try:
         # Run the 'node --version' command and get the output
         echo.info("Checking Node.JS ....")
-        result = run(
+        result = run_cmd(
             ['node', '--version'],
             check=True,
             stdout=subprocess.PIPE,
@@ -45,7 +46,7 @@ def check_node_installed():
 def install_and_create_vite_app(project_dir, vite_args):
     """Install Vite using npm."""
     try:
-        run(['npm', 'create', 'vite@latest', 'app', '-y', '--'] + vite_args, check=True)
+        run_cmd(['npm', 'create', 'vite@latest', 'app', '-y', '--'] + vite_args, check=True)
         os.chdir(os.path.join(project_dir, "app"))
         with yaspin(text="Installing dependencies ...", color="blue") as spinner:
             spinner.color = 'blue'
@@ -157,6 +158,55 @@ def pack(spec, args):
         check_call(freeze_command, stdout=DEVNULL)
         spinner.color = 'green'
         spinner.ok("✔")
+
+
+@cli.command()
+@click.argument("entry", default="main.py", required=False)
+def run(entry):
+    """Run python main.py"""
+
+    def stream_output():
+        """Handle output from both vite and python processes."""
+        while True:
+            if vite_process.poll() is not None:
+                echo.info("Vite process has finished.")
+                break
+            if python_process.poll() is not None:
+                echo.info("App process has finished.")
+                break
+
+            vite_output = vite_process.stdout.readline()
+            if vite_output:
+                echo.info(f"[Vite] {vite_output.decode().strip()}")
+            time.sleep(0.1)
+
+    # Start the vite dev server
+    vite_folder = os.path.join(os.getcwd(), "app")
+    vite_process = subprocess.Popen(
+        ['npm', 'run', 'dev'],
+        cwd=vite_folder,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE
+    )
+    # Start the python script
+    python_process = subprocess.Popen(
+        [sys.executable, entry],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        # Monitor the python script
+        stream_output()
+    except KeyboardInterrupt:
+        echo.error("Interrupted by user. Exiting.")
+    finally:
+        # Ensure both processes are terminated on exit
+
+        echo.success("Terminating ..")
+        vite_process.terminate()
+        python_process.terminate()
+        echo.success("Terminated")
 
 
 if __name__ == '__main__':
