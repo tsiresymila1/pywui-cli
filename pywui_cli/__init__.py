@@ -3,7 +3,6 @@ import platform
 import shutil
 import subprocess
 import sys
-import time
 import typing
 from subprocess import DEVNULL, check_call, run as run_cmd
 
@@ -11,6 +10,7 @@ import rich_click as click
 import ujson
 from yaspin import yaspin
 
+from .builder import PyWuiBuilder
 from .engine import put_file
 from .style import CliStyle
 
@@ -131,31 +131,9 @@ def pack(spec, args):
     click.clear()
     with yaspin(text="Packing app ...", color="blue") as spinner:
         spinner.color = 'blue'
-        try:
-            import pyinstaller
-        except ImportError:
-            check_call([sys.executable, "-m", "pip", 'install', "pyinstaller"], stdout=DEVNULL)
-        current = os.getcwd()
-        os.chdir(os.path.join(current, "app"))
-        build_command = ["npm", "run", "build"]
-        check_call(build_command, stdout=DEVNULL)
-        os.chdir(current)
-        config = _load_config()
-        icon = _get_icon(config)
-        name = config.get("name", "pywui")
-        dist = config.get("static", {}).get("dist", "app/dist")
-        freeze_command = [
-                             'pyinstaller',
-                             '-n', f'{name}',
-                             '--onefile',
-                             '--noconfirm',
-                             '--add-data', f'{dist}:.',
-                             '--add-data', 'pywui.conf.json:.',
-                             '--add-data', 'icons:icons',
-                             f'--icon={icon}',
-                             '--windowed',
-                         ] + list(args) + [spec]
-        check_call(freeze_command, stdout=DEVNULL)
+        bui = PyWuiBuilder(os.getcwd(), _load_config())
+        bui.pack(spec, args)
+        bui.create_installer()
         spinner.color = 'green'
         spinner.ok("✔")
 
@@ -164,49 +142,10 @@ def pack(spec, args):
 @click.argument("entry", default="main.py", required=False)
 def run(entry):
     """Run python main.py"""
-
-    def stream_output():
-        """Handle output from both vite and python processes."""
-        while True:
-            if vite_process.poll() is not None:
-                echo.info("Vite process has finished.")
-                break
-            if python_process.poll() is not None:
-                echo.info("App process has finished.")
-                break
-
-            vite_output = vite_process.stdout.readline()
-            if vite_output:
-                echo.info(f"[Vite] {vite_output.decode().strip()}")
-            time.sleep(0.1)
+    bui = PyWuiBuilder(os.getcwd(), _load_config())
+    bui.run(entry)
 
     # Start the vite dev server
-    vite_folder = os.path.join(os.getcwd(), "app")
-    vite_process = subprocess.Popen(
-        ['npm', 'run', 'dev'],
-        cwd=vite_folder,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdin=subprocess.PIPE
-    )
-    # Start the python script
-    python_process = subprocess.Popen(
-        [sys.executable, entry],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    try:
-        # Monitor the python script
-        stream_output()
-    except KeyboardInterrupt:
-        echo.error("Interrupted by user. Exiting.")
-    finally:
-        # Ensure both processes are terminated on exit
-
-        echo.success("Terminating ..")
-        vite_process.terminate()
-        python_process.terminate()
-        echo.success("Terminated")
 
 
 if __name__ == '__main__':
