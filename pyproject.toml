@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pywui-cli"
-version = "0.1.6"
+version = "0.1.7"
 description = "Pywui CLI for starting pywui project."
 authors = ["Tsiresy Milà <tsiresymila@gmail.com>"]
 readme = "README.md"
