@@ -53,56 +53,76 @@ def install_dependencies():
 
 
 def create_msi(
-        cwd: any,
-        app_name: str,
-        manufacturer: str = "PyWui",
-        title: str = None,
-        description: str = None
+        cwd,
+        app_name,
+        version="1.0.0",
+        description="No description",
+        maintainer="Your Name <youremail@example.com>",
+        icon_path=None,
+        output_dir="dist"
 ):
-    """Creates an MSI installer on Windows using msilib."""
-    try:
-        import msilib
-    except ImportError:
-        raise ImportError("msilib package is required to create MSI files on Windows.")
+    """
+    Creates a Windows installer (.exe) for the specified application using Inno Setup.
 
-    exe_name = os.path.join(cwd, f"dist/{app_name}.exe")
-    if not os.path.exists(exe_name):
-        raise FileNotFoundError(f"{exe_name} does not exist.")
+    :param cwd: The current directory of the application.
+    :param app_name: The name of the application.
+    :param version: The version of the app (default is "1.0.0").
+    :param description: A short description of the app (default is "No description").
+    :param maintainer: The maintainer's name and email (default is "Your Name <youremail@example.com>").
+    :param icon_path: Path to an icon file for the application (optional).
+    :param output_dir: Directory to save the installer (default is "dist").
+    """
+    # Define the paths
+    from pathlib import Path
+    installer_script_path = Path(cwd, f"{app_name}_installer.iss")
+    binary_path = Path(cwd, 'dist', f"{app_name}.exe")
+    setup_output_path = Path(output_dir)
 
-    db = msilib.init_database(f"dist/{app_name}.msi", msilib.schema, app_name, "1.0.0")
-    msilib.add_tables(db, msilib.schema)
-    msilib.add_data(db, 'Property', [('ProductName', app_name), ('Manufacturer', manufacturer or 'PyWui')])
+    if not os.path.isfile(binary_path):
+        raise FileNotFoundError(f"Binary file '{binary_path}' not found.")
 
-    msilib.add_data(db, 'Directory', [
-        ('TARGETDIR', 'SourceDir', None, None),
-        ('ProgramFilesFolder', 'TARGETDIR', 'ProgramFilesFolder', None),
-        (f"{app_name}Dir", 'ProgramFilesFolder', app_name, None)
-    ])
+    # Create the Inno Setup script content
+    inno_script = f"""
+[Setup]
+AppName={app_name}
+AppVersion={version}
+DefaultDirName={{autopf}}\\{app_name}
+DefaultGroupName={app_name}
+OutputDir={setup_output_path}
+OutputBaseFilename={app_name}_installer
+Compression=lzma
+SolidCompression=yes
+LicenseFile=LICENSE.txt
+AppPublisher={maintainer}
+AppPublisherURL=http://www.example.com
+AppSupportURL=http://www.example.com
+AppUpdatesURL=http://www.example.com
 
-    feature = msilib.Feature(
-        db, "DefaultFeature",
-        title or "Default Feature",
-        description or "Everything",
-        1,
-        directory=f"{app_name}Dir"
-    )
-    cab = msilib.CAB(f"{app_name}Files")
-    cab.add(exe_name, f"{app_name}.exe")
-    cab.commit(db)
+[Files]
+Source: "{binary_path}"; DestDir: "{{app}}"; Flags: ignoreversion
 
-    msilib.add_data(db, 'File', [
-        (f"{app_name}.exe", f"{app_name}Dir", f"{app_name}.exe", None, 0, 0, f"{app_name}Files", None, None)
-    ])
+[Icons]
+Name: "{{autoprograms}}\\{app_name}"; Filename: "{{app}}\\{app_name}.exe"
 
-    msilib.add_data(db, 'Component', [
-        ('AppExecutable', f"{app_name}Dir", f"{app_name}.exe", None, None, None, None, None, None, None, 0)
-    ])
+[Run]
+Filename: "{{app}}\\{app_name}.exe"; Description: "{app_name}"; Flags: nowait postinstall skipifsilent
+"""
 
-    msilib.add_data(db, 'FeatureComponents', [
-        ('DefaultFeature', 'AppExecutable')
-    ])
-    db.Commit()
-    print(f"MSI created: {app_name}.msi")
+    if icon_path:
+        inno_script += f"""
+[Icons]
+Name: "{{autoprograms}}\\{app_name}"; Filename: "{{app}}\\{app_name}.exe"; IconFilename: "{icon_path}"
+"""
+
+    # Save the Inno Setup script
+    with open(installer_script_path, 'w') as f:
+        f.write(inno_script)
+
+    # Run Inno Setup to generate the installer
+    inno_setup_path = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"  # Update the path if needed
+    subprocess.run([inno_setup_path, str(installer_script_path)], check=True)
+
+    print(f"Installer created successfully: {setup_output_path}/{app_name}_installer.exe")
 
 
 def create_dmg(cwd: any, app_name: str, icon: str, badge: str):

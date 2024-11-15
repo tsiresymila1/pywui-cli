@@ -19,37 +19,39 @@ class PyWuiBuilder:
     def __init__(self, cwd: str, config: dict[str, any]):
         self.cwd = cwd
         self.config = config
+        self.windows = sys.platform.lower().startswith('win')
 
     def _stream_output(self, entry: str):
         """Handle output from both vite and python processes."""
         while True:
-            if self.vite_process.poll() is not None:
-                echo.info("Vite process has finished.")
-                break
-
             if self.webview_process and self.webview_process.poll() is not None:
                 echo.info("App process has finished.")
                 break
             vite_output = self.vite_process.stdout.readline()
             if vite_output:
-                if ("Local:" in vite_output or "Network: " in vite_output) and self.webview_process is None:
+                if ("Local" in vite_output or "Network" in vite_output) and self.webview_process is None:
                     time.sleep(1)
                     self.webview_process = Popen(
-                        [f"{sys.executable} {entry}"],
+                        [sys.executable, entry] if self.windows else [f"{sys.executable} {entry}"],
                         universal_newlines=True,
                         shell=True
                     )
                 echo.info(f"[Vite] {vite_output.strip()}")
 
+            if self.vite_process.poll() is not None:
+                echo.info("Vite process has finished.")
+                break
+
     def run(self, entry: str):
         vite_folder = os.path.join(self.cwd, "app")
         self.vite_process = Popen(
-            ["npm run dev"],
+            ["npm", "run", "dev"] if self.windows else ["npm run dev"],
             cwd=vite_folder,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=True,
-            universal_newlines=True
+            universal_newlines=True,
+            encoding="utf-8"
         )
         # Start the python script
         try:
@@ -76,8 +78,9 @@ class PyWuiBuilder:
         from .installer import install_dependencies, create_deb, create_dmg, create_msi, create_rpm
         system = install_dependencies()
         if system == "Windows":
-            print(f"Creating MSI for {name} on Windows...")
-            create_msi(self.cwd, name)
+            pass
+            # print(f"Creating MSI for {name} on Windows...")
+            # create_msi(self.cwd, name)
         elif system == "Darwin":
             print(f"Creating DMG for {name} on macOS...")
             create_dmg(
@@ -102,10 +105,13 @@ class PyWuiBuilder:
         try:
             import pyinstaller
         except ImportError:
-            subprocess.check_call([sys.executable, "-m", "pip", 'install', "pyinstaller"], stdout=subprocess.DEVNULL)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", 'install', "pyinstaller"],
+                stdout=subprocess.DEVNULL,
+                shell=True)
         os.chdir(os.path.join(self.cwd, "app"))
         build_command = ["npm", "run", "build"]
-        subprocess.check_call(build_command, stdout=subprocess.DEVNULL)
+        subprocess.check_call(build_command, stdout=subprocess.DEVNULL, shell=True)
         os.chdir(self.cwd)
         icon = self._get_icon()
         name = self.config.get("name", "pywui")
