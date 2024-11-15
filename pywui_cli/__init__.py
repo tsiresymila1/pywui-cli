@@ -45,14 +45,18 @@ def check_node_installed():
 
 def install_and_create_vite_app(project_dir, vite_args):
     """Install Vite using npm."""
+    cmd = ['npm', 'create', 'vite@latest', 'app', '-y', '--']  + vite_args
+    if platform.system() == 'Windows':
+        # cmd = " ".join(cmd)cmd
+        pass
     try:
-        run_cmd(['npm', 'create', 'vite@latest', 'app', '-y', '--'] + vite_args, check=True)
+        run_cmd(cmd, check=True, shell=True)
         os.chdir(os.path.join(project_dir, "app"))
         with yaspin(text="Installing dependencies ...", color="blue") as spinner:
             spinner.color = 'blue'
             check_call([sys.executable, "-m", "pip", 'install', "pywebview", "pywui"], stdout=DEVNULL)
-            check_call(["npm", 'install'], stdout=DEVNULL)
-            check_call(["npm", 'install', '@pywui/app'], stdout=DEVNULL)
+            check_call(["npm", 'install'], stdout=DEVNULL, shell=True)
+            check_call(["npm", 'install', '@pywui/app'], stdout=DEVNULL, shell=True)
             spinner.color = 'green'
             spinner.ok("✔")
     except subprocess.CalledProcessError as e:
@@ -132,7 +136,7 @@ def pack(spec, args):
     with yaspin(text="Packing app ...", color="blue") as spinner:
         spinner.color = 'blue'
         bui = PyWuiBuilder(os.getcwd(), _load_config())
-        # bui.pack(spec, args)
+        bui.pack(spec, args)
         bui.create_installer()
         spinner.color = 'green'
         spinner.ok("✔")
