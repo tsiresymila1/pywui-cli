@@ -23,11 +23,12 @@ def check_node_installed():
         # Run the 'node --version' command and get the output
         echo.info("Checking Node.JS ....")
         result = run_cmd(
-            ['node', '--version'],
+            'node --version',
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            shell=True
         )
         # Extract the version number from the output, which will look like 'v20.3.1'
         version = result.stdout.strip().lstrip('v')
@@ -45,18 +46,15 @@ def check_node_installed():
 
 def install_and_create_vite_app(project_dir, vite_args):
     """Install Vite using npm."""
-    cmd = ['npm', 'create', 'vite@latest', 'app', '-y', '--']  + vite_args
-    if platform.system() == 'Windows':
-        # cmd = " ".join(cmd)cmd
-        pass
+    cmd = ['npm', 'create', 'vite@latest', 'app', '-y', '--'] + vite_args
     try:
-        run_cmd(cmd, check=True, shell=True)
+        run_cmd(" ".join(cmd), check=True, shell=True)
         os.chdir(os.path.join(project_dir, "app"))
         with yaspin(text="Installing dependencies ...", color="blue") as spinner:
             spinner.color = 'blue'
             check_call([sys.executable, "-m", "pip", 'install', "pywebview", "pywui"], stdout=DEVNULL)
-            check_call(["npm", 'install'], stdout=DEVNULL, shell=True)
-            check_call(["npm", 'install', '@pywui/app'], stdout=DEVNULL, shell=True)
+            check_call("npm install", stdout=DEVNULL, shell=True)
+            check_call("npm install @pywui/app", stdout=DEVNULL, shell=True)
             spinner.color = 'green'
             spinner.ok("✔")
     except subprocess.CalledProcessError as e:
