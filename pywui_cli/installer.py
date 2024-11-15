@@ -125,7 +125,7 @@ Name: "{{autoprograms}}\\{app_name}"; Filename: "{{app}}\\{app_name}.exe"; IconF
     print(f"Installer created successfully: {setup_output_path}/{app_name}_installer.exe")
 
 
-def create_dmg(cwd: any, app_name: str, icon: str, badge: str):
+def create_dmg_(cwd: any, app_name: str, icon: str, badge: str):
     """Creates a DMG installer on macOS using dmgbuild."""
     try:
         import dmgbuild
@@ -147,6 +147,83 @@ def create_dmg(cwd: any, app_name: str, icon: str, badge: str):
         }
     )
     print(f"DMG created: {app_name}.dmg")
+
+
+def create_dmg(
+        cwd,
+        app_name,
+        version="1.0.0",
+        output_dir="dist",
+        icon=None,
+        custom_layout=False
+):
+    """
+    Create a .dmg disk image for macOS from an app bundle.
+
+    :param cwd: The working dir of the app.
+    :param app_name: The name of the app.
+    :param version: The version of the app (default is "1.0.0").
+    :param output_dir: Directory to save the .dmg file (default is current directory).
+    :param icon: Optional background image for the DMG (default is None).
+    :param custom_layout: Whether to use a custom layout for the DMG (default is False).
+    """
+    from pathlib import Path
+    import shutil
+    app_bundle_path = Path(cwd) / 'dist' / f'{app_name}.app'
+    dmg_output_path = Path(output_dir) / f"{app_name}-{version}.dmg"
+    dmg_temp_folder = Path(cwd) / "dmg_temp"
+
+    # Ensure the app bundle exists
+    if not app_bundle_path.is_dir():
+        raise FileNotFoundError(f"The app bundle {app_bundle_path} does not exist.")
+
+    # Create a temporary folder to structure the DMG contents
+    dmg_temp_folder.mkdir(parents=True, exist_ok=True)
+
+    # Copy the app bundle to the temp folder
+    app_dest = dmg_temp_folder / f"{app_name}.app"
+    if not app_dest.exists():
+        shutil.copytree(app_bundle_path, app_dest)
+
+    # Create a symbolic link to Applications
+    applications_link = dmg_temp_folder / "Applications"
+    if not applications_link.exists():
+        applications_link.symlink_to("/Applications")
+
+    if custom_layout:
+        if icon is None or not Path(icon).is_file():
+            raise ValueError("For custom layout, a valid background image file must be provided.")
+        # Use create-dmg for a custom layout with background
+        create_dmg_command = [
+            "create-dmg",
+            "--volname", app_name,
+            "--background", icon,
+            "--window-size", "600", "400",
+            "--icon-size", "100",
+            "--icon", f"{app_name}.app", "175", "120",
+            "--app-drop-link", "425", "120",
+            str(dmg_output_path),
+            str(dmg_temp_folder)
+        ]
+        os.system(" ".join(create_dmg_command))
+    else:
+        # Create DMG using hdiutil for a basic layout
+        dmg_command = [
+            "hdiutil", "create",
+            str(dmg_output_path),
+            "-volname", app_name,
+            "-srcfolder", str(dmg_temp_folder),
+            "-ov", "-format", "UDZO"
+        ]
+        os.system(" ".join(dmg_command))
+
+    # Clean up the temporary folder
+    shutil.rmtree(dmg_temp_folder, ignore_errors=True)
+
+    print(f"Disk image created successfully: {dmg_output_path}")
+
+
+# Example usage
 
 
 def create_deb(

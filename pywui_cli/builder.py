@@ -87,7 +87,7 @@ class PyWuiBuilder:
                 self.cwd,
                 name,
                 icon=self._get_icon(),
-                badge=self._get_icon()
+                custom_layout=True
             )
         elif system == "Linux":
             if os.path.exists("/etc/debian_version"):
@@ -105,14 +105,13 @@ class PyWuiBuilder:
         try:
             import pyinstaller
         except ImportError:
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", 'install', "pyinstaller"],
+            subprocess.run(
+                ["pip", 'install', "pyinstaller"],
                 stdout=subprocess.DEVNULL,
                 shell=True)
-        os.chdir(os.path.join(self.cwd, "app"))
-        build_command = ["npm", "run", "build"]
-        subprocess.check_call(build_command, stdout=subprocess.DEVNULL, shell=True)
-        os.chdir(self.cwd)
+
+        build_command = ["npm", "run", "build"] if self.windows else ["npm run build"]
+        subprocess.check_call(build_command, stdout=subprocess.DEVNULL, shell=True, cwd=os.path.join(self.cwd, "app"))
         icon = self._get_icon()
         name = self.config.get("name", "pywui")
         dist = self.config.get("static", {}).get("dist", "app/dist")
