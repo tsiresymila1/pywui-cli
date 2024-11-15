@@ -132,7 +132,7 @@ def pack(spec, args):
     with yaspin(text="Packing app ...", color="blue") as spinner:
         spinner.color = 'blue'
         bui = PyWuiBuilder(os.getcwd(), _load_config())
-        bui.pack(spec, args)
+        # bui.pack(spec, args)
         bui.create_installer()
         spinner.color = 'green'
         spinner.ok("✔")

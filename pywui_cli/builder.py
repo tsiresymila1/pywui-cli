@@ -89,7 +89,7 @@ class PyWuiBuilder:
         elif system == "Linux":
             if os.path.exists("/etc/debian_version"):
                 print(f"Creating DEB for {name} on Debian-based Linux...")
-                create_deb(self.cwd, name)
+                create_deb(self.cwd, name, icon_path=self._get_icon())
             elif os.path.exists("/etc/redhat-release"):
                 print(f"Creating RPM for {name} on Red Hat-based Linux...")
                 create_rpm(self.cwd, name)
